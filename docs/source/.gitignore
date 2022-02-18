@@ -1,0 +1,5 @@
+# exclude all auto-generated rst files that are placed inside this directory.
+
+*.rst
+!index.rst
+!readme.rst
