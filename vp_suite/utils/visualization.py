@@ -13,35 +13,42 @@ COLORS = {
     "white": [255, 255, 255]
 }  # r, g, b
 
+
 def get_color_array(color):
     r_g_b = COLORS.get(color, COLORS["white"])
     return np.array(r_g_b, dtype=np.uint8)[np.newaxis, np.newaxis, np.newaxis, ...]
+
 
 def add_border_around_vid(vid, c_and_l, b_width=10):
 
     _, h, w, _ = vid.shape
     color_bars_vertical = [np.tile(get_color_array(c), (l, h, b_width, 1)) for (c, l) in c_and_l]
     cbv = np.concatenate(color_bars_vertical, axis=0)
-
     color_bars_horizontal = [np.tile(get_color_array(c), (l, b_width, w + 2 * b_width, 1)) for (c, l) in c_and_l]
     cbh = np.concatenate(color_bars_horizontal, axis=0)
-
     vid = np.concatenate([cbv, vid, cbv], axis=-2)   # add bars in the width dim
     vid = np.concatenate([cbh, vid, cbh], axis=-3)   # add bars in the height dim
     return vid
 
-def save_vid_vis(out_fp, context_frames, mode="gif", **trajs):
 
-    trajs = {k: v for k, v in trajs.items() if v is not None}  # filter out 'None' trajs
+def add_borders(trajs, context_frames):
     T, h, w, _ = list(trajs.values())[0].shape
-    T_in, T_pred = context_frames, T-context_frames
+    border_width = min(h, w) // 8
     for key, traj in trajs.items():
         if "true_" in key.lower() or "gt_" in key.lower() or key.lower() == "gt":
-            trajs[key] = add_border_around_vid(traj, [("green", T)], b_width=16)
+            trajs[key] = add_border_around_vid(traj, [("green", T)], b_width=border_width)
         elif "seg" in key.lower():
-            trajs[key] = add_border_around_vid(traj, [("yellow", T)], b_width=16)
+            trajs[key] = add_border_around_vid(traj, [("yellow", T)], b_width=border_width)
         else:
-            trajs[key] = add_border_around_vid(traj, [("green", T_in), ("red", T_pred)], b_width=16)
+            trajs[key] = add_border_around_vid(traj, [("green", context_frames), ("red", T - context_frames)],
+                                               b_width=border_width)
+    return trajs
+
+
+def save_vid_vis(out_fp, context_frames, mode="gif", **trajs):
+    trajs = {k: v for k, v in trajs.items() if v is not None}  # filter out 'None' trajs
+    T, h, w, _ = list(trajs.values())[0].shape
+    trajs = add_borders(trajs, context_frames)
 
     if mode == "gif":  # gif visualizations with matplotlib  # TODO fix it
         try:
@@ -82,56 +89,62 @@ def save_vid_vis(out_fp, context_frames, mode="gif", **trajs):
         except ImportError:
             raise ImportError("importing cv2 failed"
                               " -> please install opencv-python (cv2) or use the gif-mode for visualization.")
-        for name, traj in trajs.items():
-            frames = list(traj)
-            out_paths = []
-            for t, frame in enumerate(frames):
-                out_fn = f"{out_fp[:-4]}_{name}_t{t}.jpg"
-                out_paths.append(out_fn)
-                out_frame_BGR = frame[:, :, ::-1]
-                cv.imwrite(out_fn, out_frame_BGR)
-            clip = ImageSequenceClip(out_paths, fps=2)
-            clip.write_videofile(f"{out_fp[:-4]}_{name}.mp4", fps=2)
-            for out_fn in out_paths:
-                os.remove(out_fn)
+
+        combined_traj = np.concatenate(list(trajs.values()), axis=-2)  # put visualizations next to each other
+        out_paths = []
+        for t, frame in enumerate(list(combined_traj)):
+            out_fn = f"{out_fp[:-4]}_t{t}.jpg"
+            out_paths.append(out_fn)
+            out_frame_BGR = frame[:, :, ::-1]
+            cv.imwrite(out_fn, out_frame_BGR)
+        clip = ImageSequenceClip(out_paths, fps=2)
+        clip.write_videofile(f"{out_fp[:-4]}.mp4", fps=2)
+        for out_fn in out_paths:
+            os.remove(out_fn)
+
 
 def visualize_vid(dataset, context_frames, pred_frames, pred_model, device,
-                  out_path, num_vis=5, vis_idx=None, mode="gif"):
+                  out_path, vis_idx, vis_mode):
 
-    out_fn_template = "vis_{}." + mode
+    out_fn_template = "vis_{}." + vis_mode
+    data_unpack_config = {"device": device, "context_frames": context_frames, "pred_frames": pred_frames}
 
-    if vis_idx is None:
-        vis_idx = np.random.choice(len(dataset), num_vis, replace=False)
+    if vis_idx is None or any([x >= len(dataset) for x in vis_idx]):
+        raise ValueError(f"invalid vis_idx provided for visualization "
+                         f"(dataset len = {len(dataset)}): {vis_idx}")
 
+    pred_model.eval()
     for i, n in enumerate(vis_idx):
+
+        # prepare input and ground truth sequence
+        data = dataset[n]  # [T, c, h, w]
+        if pred_model.NEEDS_COMPLETE_INPUT:
+            input, _, actions = pred_model.unpack_data(data, data_unpack_config)
+            input_vis = dataset.postprocess(input.clone().squeeze(dim=0))
+        else:
+            input, target, actions = pred_model.unpack_data(data, data_unpack_config)
+            full = torch.cat([input.clone(), target.clone()], dim=1)
+            input_vis = dataset.postprocess(full.squeeze(dim=0))
+
+        # fwd
+        if pred_model is None:
+            raise ValueError("Need to provide a valid prediction model for visualization!")
+        with torch.no_grad():
+            pred, _ = pred_model(input, pred_frames, actions=actions)  # [1, T_pred, c, h, w]
+
+        # assemble prediction
+        if pred_model.NEEDS_COMPLETE_INPUT:  # replace original pred frames with actual prediction
+            input_and_pred = input
+            input_and_pred[:, -pred.shape[1]:] = pred
+        else:  # concat context frames and prediction
+            input_and_pred = torch.cat([input, pred], dim=1)  # [1, T, c, h, w]
+        pred_vis = dataset.postprocess(input_and_pred.squeeze(dim=0))  # [T, h, w, c]
+
+        # visualize
         out_filename = str(out_path / out_fn_template.format(str(i)))
-        data = dataset[n]  # [in_l + pred_l, c, h, w]
-        actions = data["actions"].clone().to(device).unsqueeze(dim=0)
-        in_traj = data["frames"][:context_frames].clone().to(device).unsqueeze(dim=0)  # [1, in_l, c, h, w]
-        colorized = data.get("colorized", None)
+        save_vid_vis(out_fp=out_filename, context_frames=context_frames, GT=input_vis, Pred=pred_vis, mode=vis_mode)
 
-        gt_rgb_vis = dataset.postprocess(data["frames"][:context_frames + pred_frames])
-        if colorized is not None:
-            colorized = colorized.clone()
-            gt_colorized_vis = dataset.postprocess(colorized)  # [in_l, h, w, c]
-        else:
-            gt_colorized_vis = None
-
-        if pred_model is not None:
-            pred_model.eval()
-            with torch.no_grad():
-                pr_traj, _ = pred_model(in_traj, pred_frames, actions=actions)  # [1, pred_l, c, h, w]
-                pr_traj = torch.cat([in_traj, pr_traj], dim=1) # [1, in_l + pred_l, c, h, w]
-                pr_traj_vis = dataset.postprocess(pr_traj.squeeze(dim=0))  # [in_l + pred_l, h, w, c]
-
-                save_vid_vis(out_fp=out_filename, context_frames=context_frames, GT=gt_rgb_vis,
-                    GT_Color=gt_colorized_vis, Pred=pr_traj_vis, mode=mode)
-
-            pred_model.train()
-
-        else:
-            save_vid_vis(out_fp=out_filename, context_frames=context_frames, GT=gt_rgb_vis,
-                GT_Color=gt_colorized_vis, mode=mode)
+    pred_model.train()
 
 
 def save_diff_hist(diff, diff_id):

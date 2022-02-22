@@ -1,4 +1,4 @@
-import random, json, os
+import random, json, os, time
 import warnings
 from typing import List, Dict, Any
 from pathlib import Path
@@ -89,22 +89,39 @@ class VPSuite:
         Args:
             dataset ():
             split ():
-            value_min ():
-            value_max ():
             **dataset_kwargs ():
 
         Returns:
 
         """
+        # create dataset wrapper
         dataset_class = DATASET_CLASSES[dataset]
         dataset = DatasetWrapper(dataset_class, split, **dataset_kwargs)
         print(f"loaded dataset '{dataset.NAME}' from {dataset.data_dir} "
               f"(action size: {dataset.action_size})")
+
+        # if seq information is specified, directly execute set_seq_len
+        if any([k in dataset_kwargs.keys() for k in ["context_frames", "pred_frames", "seq_step"]]):
+            with open(str(self._DEFAULT_RUN_CONFIG.resolve()), 'r') as cfg_file:
+                run_config = json.load(cfg_file)
+            context_frames = dataset_kwargs.pop("context_frames", run_config["context_frames"])
+            pred_frames = dataset_kwargs.pop("pred_frames", run_config["pred_frames"])
+            seq_step = dataset_kwargs.pop("seq_step", run_config["seq_step"])
+            dataset.set_seq_len(context_frames, pred_frames, seq_step)
+            
         self.datasets.append(dataset)
 
     def download_dataset(self, dataset):
         dataset_class = DATASET_CLASSES[dataset]
         dataset_class.download_and_prepare_dataset()
+
+    def list_available_datasets(self):
+        for dataset_id, dataset_class in DATASET_CLASSES.items():
+            print(f"'{dataset_id}': {dataset_class.NAME}")
+
+    def list_available_models(self):
+        for model_id, model_class in MODEL_CLASSES.items():
+            print(f"'{model_id}': {model_class.NAME}")
 
     def load_model(self, model_dir, ckpt_name="best_model.pth"):
         r"""
@@ -193,15 +210,15 @@ class VPSuite:
         elif split == "test" and len(self.test_sets) == 0:
             raise ValueError("No test sets loaded. Load a dataset in test mode "
                              "before starting training or test runs")
-        with open(str(self._DEFAULT_RUN_CONFIG.resolve()), 'r') as tc_file:
-            run_config = json.load(tc_file)
+        with open(str(self._DEFAULT_RUN_CONFIG.resolve()), 'r') as cfg_file:
+            run_config = json.load(cfg_file)
 
         # update config
         if not all([run_arg in run_config.keys() for run_arg in run_args.keys()]):
             raise ValueError(f"Only the following run arguments are supported: {run_config.keys()}")
         run_config.update(run_args)
 
-        # seed
+        # seeding. IMPORTANT: THIS SHOULD BE THE ONLY LOCATION WHERE THESE RANDOM SEEDS ARE SET!
         random.seed(run_config["seed"])
         np.random.seed(run_config["seed"])
         torch.manual_seed(run_config["seed"])
@@ -226,8 +243,8 @@ class VPSuite:
         run_config = self._prepare_run("train", **training_kwargs)
 
         try:
-            dataset : DatasetWrapper = self.training_sets[dataset_idx]
-            model : VideoPredictionModel = self.models[model_idx]
+            dataset: DatasetWrapper = self.training_sets[dataset_idx]
+            model: VideoPredictionModel = self.models[model_idx]
         except IndexError:
             raise ValueError("given indices for model and/or dataset are invalid")
 
@@ -287,7 +304,8 @@ class VPSuite:
                         run_config[param] = suggest(param, p_dict["min"], p_dict["max"], step=step)
 
         # assemble and save combined configuration
-        config : Dict[str, Any] = {**run_config, **model.config, **dataset.config, "device": self.device}
+        config: Dict[str, Any] = {**run_config, **model.config, **dataset.config, "device": self.device,
+                                  "model_name": model.NAME, "dataset_name": dataset.NAME}
         save_config = {"run": run_config, "model": model.config,
                        "dataset": dataset.config, "device": self.device}
         with open(str((out_path / 'run_cfg.json').resolve()), "w") as cfg_file:
@@ -318,6 +336,7 @@ class VPSuite:
             def loss_improved(cur_loss, best_loss): return cur_loss < best_loss
 
         # --- MAIN LOOP ---
+        training_timeout = time.time() + config["max_training_hours"] * 3600
         for epoch in range(0, run_config["epochs"]):
             print(f"\nEpoch: {epoch+1} of {config['epochs']}")
 
@@ -351,20 +370,24 @@ class VPSuite:
             # visualize current model performance every nth epoch, using eval mode and validation data.
             if (epoch+1) % config["vis_every"] == 0 and not config["no_vis"]:
                 print("Saving visualizations...")
-                vis_out_path = out_path / f"vis_ep_{epoch+1:03d}"
-                vis_out_path.mkdir()
+                vis_out_dir = out_path / f"vis_ep_{epoch+1:03d}"
+                vis_out_dir.mkdir()
+                vis_idx = np.random.choice(len(val_data), config["n_vis"], replace=False)
                 visualize_vid(val_data, config["context_frames"], config["pred_frames"], model,
-                              config["device"], vis_out_path, num_vis=10)
+                              config["device"], vis_out_dir, vis_idx, config["vis_mode"])
 
                 if with_wandb:
-                    vid_filenames = sorted(os.listdir(str(vis_out_path)))
-                    log_vids = {fn: wandb.Video(str(vis_out_path / fn), fps=4, format=fn.split(".")[-1])
+                    vid_filenames = sorted(os.listdir(str(vis_out_dir)))
+                    log_vids = {fn: wandb.Video(str(vis_out_dir / fn), fps=4, format=fn.split(".")[-1])
                                 for i, fn in enumerate(vid_filenames)}
                     wandb.log(log_vids, commit=False)
 
             # final bookkeeping
             if with_validation and with_wandb:
                 wandb.log(val_losses, commit=True)
+            if time.time() > training_timeout:
+                print("Maximum training time exceeded, leaving training loop...")
+                break
 
         # finishing
         print("\nTraining done, cleaning up...")
@@ -413,7 +436,7 @@ class VPSuite:
         run_config = self._prepare_run("test", **run_kwargs)
 
         # prepare datasets for testing
-        test_sets : List[DatasetWrapper] = self.test_sets
+        test_sets: List[DatasetWrapper] = self.test_sets
         for test_set in test_sets:
             test_set.set_seq_len(run_config["context_frames"], run_config["pred_frames"], run_config["seq_step"])
             assert test_set.is_ready, "test set is not ready even though set_seq_len has just been called"
@@ -462,7 +485,7 @@ class VPSuite:
         """
         # PREPARATION
         test_data = dataset.test_data
-        test_loader = DataLoader(test_data, batch_size=1, shuffle=True, num_workers=0)
+        test_loader = DataLoader(test_data, batch_size=1, shuffle=False, num_workers=0)
         if len(test_loader) < 1:
             raise RuntimeError("loaded dataset does not contain any data (len < 1)")
         test_mode = "brief" if brief_test else "full"
@@ -492,17 +515,19 @@ class VPSuite:
                     model_metrics_per_dp.append(cur_metrics)
 
         # save visualizations
+        timestamp_test = timestamp('test')
         if not config["no_vis"]:
             print(f"Saving visualizations for trained models...")
-            num_vis = 5
-            vis_idx = np.random.choice(len(test_data), num_vis, replace=False)
+            vis_idx = np.random.choice(len(test_data), config["n_vis"], replace=False)
             for i, (model, _, _, _) in enumerate(model_info_list):
                 if model.model_dir is None:
                     continue  # don't print for models that don't have a run dir (i.e. baseline models)
-                vis_out_dir = Path(model.model_dir) / f"vis_{timestamp('test')}"
+                vis_out_dir = Path(model.model_dir) / f"vis_{timestamp_test}"
                 vis_out_dir.mkdir()
                 visualize_vid(test_data, config["context_frames"], config["pred_frames"],
-                              model, config["device"], vis_out_dir, vis_idx=vis_idx)
+                              model, config["device"], vis_out_dir, vis_idx, config["vis_mode"])
+
+
 
         # log or display metrics
         if eval_length > 0:
@@ -525,10 +550,16 @@ class VPSuite:
                 if with_wandb:
                     print("Logging test results to WandB for all models...")
                     wandb.init(config={"test_mode": test_mode, "model_dir": model.model_dir},
-                               project="vp-suite-testing", name=f"{model.NAME}{wandb_full_suffix}",
+                               project="vp-suite-testing", name=f"{model.NAME} ({wandb_full_suffix})",
                                dir=str(constants.WANDB_PATH.resolve()), reinit=(i > 0))
                     for f, mean_metric_dict in enumerate(mean_metric_dicts):
                         wandb.log({"pred_frames": f+1, **mean_metric_dict})
+                    if not config["no_vis"] and model.model_dir is not None:
+                        vis_out_dir = Path(model.model_dir) / f"vis_{timestamp_test}"
+                        vid_filenames = sorted(os.listdir(str(vis_out_dir)))
+                        model_log_vids = {fn: wandb.Video(str(vis_out_dir / fn), fps=4, format=fn.split(".")[-1])
+                                          for i, fn in enumerate(vid_filenames)}
+                        wandb.log(model_log_vids)
                     if i == len(model_info_list) - 1:
                         wandb.finish()
 
