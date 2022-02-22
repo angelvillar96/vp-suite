@@ -48,11 +48,11 @@ class DCGAN_Encoder(nn.Module):
         Base number of convolutional kernels. It's multiplied by 2 at each Conv. Block
     """
 
-    def __init__(self, dim, nc=1, nf=64):
+    def __init__(self, nc=1, nf=64, dim=None):
         """ """
         super().__init__()
         self.spatial_dims = [(32, 32), (16, 16), (8, 8), (4, 4), (1, 1)]
-        self.dim = dim
+        self.dim = dim if dim is not None else nf * 8
         # input is (nc) x 64 x 64
         self.c1 = dcgan_conv(nc, nf)
         # state size. (nf) x 32 x 32
@@ -63,8 +63,8 @@ class DCGAN_Encoder(nn.Module):
         self.c4 = dcgan_conv(nf * 4, nf * 8)
         # state size. (nf*8) x 4 x 4
         self.c5 = nn.Sequential(
-                nn.Conv2d(nf * 8, dim, 4, 1, 0),
-                nn.BatchNorm2d(dim, track_running_stats=BN_TRACK_STATS),
+                nn.Conv2d(nf * 8, self.dim, 4, 1, 0),
+                nn.BatchNorm2d(self.dim, track_running_stats=BN_TRACK_STATS),
                 nn.Tanh()
                 )
 
@@ -93,12 +93,12 @@ class DCGAN_Decoder(nn.Module):
         Base number of convolutional kernels.
     """
 
-    def __init__(self, dim, nc=1, nf=64):
+    def __init__(self, nc=1, nf=64, dim=None):
         super().__init__()
-        self.dim = dim
+        self.dim = dim if dim is not None else nf * 8
         self.upc1 = nn.Sequential(
                 # input is Z, going into a convolution
-                nn.ConvTranspose2d(dim, nf * 8, 4, 1, 0),
+                nn.ConvTranspose2d(self.dim, nf * 8, 4, 1, 0),
                 nn.BatchNorm2d(nf * 8, track_running_stats=BN_TRACK_STATS),
                 nn.LeakyReLU(0.2, inplace=True)
                 )

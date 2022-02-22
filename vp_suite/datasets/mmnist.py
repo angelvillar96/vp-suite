@@ -68,7 +68,7 @@ class MovingMNISTDataset(VPDataset):
         d_path.mkdir(parents=True)
 
         # training sequences
-        train_seqs = 60000
+        train_seqs = 10000
         print("generating training set...")
         train_data = generate_moving_mnist(d_path, training=True, shape=frame_size, num_frames=num_frames,
                                            num_images=train_seqs, original_size=digit_size,

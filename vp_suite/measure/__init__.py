@@ -4,6 +4,7 @@ Measures can either be losses or metrics depending on whether they're differenti
 """
 
 from vp_suite.measure.image_wise import MSE, L1, SmoothL1, LPIPS, SSIM, PSNR
+from vp_suite.measure.probabilistic import KLLoss
 from vp_suite.measure.fvd.fvd import FrechetVideoDistance
 
 # === losses ===================================================================
@@ -15,6 +16,7 @@ LOSS_CLASSES = {
     "lpips": LPIPS,
     "ssim": SSIM,
     "psnr": PSNR,
+    "kl": KLLoss,
     "fvd": FrechetVideoDistance
 }  #: TODO
 AVAILABLE_LOSSES = LOSS_CLASSES.keys()

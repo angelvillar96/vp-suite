@@ -22,7 +22,7 @@ MODEL_CLASSES = {
     "unet-3d": UNet3D,
 
     # more sophisticated models
-    "svg-lp": SVG,
+    "svg-det": SVG,
     "svg-fp": SVG,
     "phy": PhyDNet,
     "st-phy": STPhy,

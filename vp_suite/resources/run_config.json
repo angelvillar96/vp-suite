@@ -9,7 +9,8 @@
     "epochs": 100,
     "batch_size": 32,
     "losses_and_scales": {
-        "mse": 1.0
+        "mse": 1.0,
+        "kl": 1e-4
     },
     "val_rec_criterion": "mse",
     "metrics": "all",

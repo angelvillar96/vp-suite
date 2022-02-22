@@ -94,31 +94,31 @@ def get_HKO_config_ConvLSTM(c, h, w):
         "num_layers": 3,
         "enc_c": [8, 64, 192, 192, 192, 192],
         "dec_c": [192, 192, 192, 64, 64, 8],
-    
+
         "enc_conv_names": ["conv1_leaky_1", "conv2_leaky_1", "conv3_leaky_1"],
         "enc_conv_k": [7, 5, 3],
         "enc_conv_s": [5, 3, 2],
         "enc_conv_p": [1, 1, 1],
-    
+
         "dec_conv_names": ["deconv1_leaky_1", "deconv2_leaky_1", "deconv3_leaky_1"],
         "dec_conv_k": [4, 5, 7],
         "dec_conv_s": [2, 3, 5],
         "dec_conv_p": [1, 1, 1],
-    
+
         "enc_rnn_k": [3, 3, 3],
         "enc_rnn_s": [1, 1, 1],
         "enc_rnn_p": [1, 1, 1],
-    
+
         "dec_rnn_k": [3, 3, 3],
         "dec_rnn_s": [1, 1, 1],
         "dec_rnn_p": [1, 1, 1],
-    
+
         "final_conv_1_name": "conv3_leaky_2",
         "final_conv_1_c": 8,
         "final_conv_1_k": 3,
         "final_conv_1_s": 1,
         "final_conv_1_p": 1,
-    
+
         "final_conv_2_name": "conv3_3",
         "final_conv_2_k": 1,
         "final_conv_2_s": 1,

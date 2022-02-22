@@ -24,29 +24,31 @@ class LSTM(ModelBlock):
 
     def __init__(self, input_dim, hidden_dim, output_dim, num_layers, bias=True):
         """ Initializer of the LSTM block """
-        super(GaussianLSTM, self).__init__()
+        super(LSTM, self).__init__()
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.output_dim = output_dim
+        self.num_layers = num_layers
+        self.hidden_state = None
 
         self.embed = nn.Linear(input_dim, hidden_dim)
         self.cell_list = nn.ModuleList([
                 nn.LSTMCell(hidden_dim, hidden_dim, bias) for i in range(self.num_layers)
             ])
         self.output = nn.Sequential(
-                    nn.Linear(hidden_dim, hidden_dim),
+                    nn.Linear(hidden_dim, output_dim),
                     nn.Tanh()
                 )
         return
 
-    def forward(self, input_tensor, hidden_state=None):
+    def forward(self, input_tensor):
         """
         Forward pass through Gaussian LSTM
 
         Parameters
         ----------
         input_tensor: torch Tensor
-            3-D Tensor either of shape (t, b, d) or (b, t, d)
+            2-D Tensor either of shape (b d)
 
         Returns
         -------
@@ -55,17 +57,15 @@ class LSTM(ModelBlock):
         (mu, logvar): tuple (torch Tensor, torch Tensor)
             Mean and log-covariance of the Gaussain approximate posterior
         """
-        if not self.batch_first:
-            input_tensor = input_tensor.permute(1, 0, 2, 3, 4)
-        b, seq_len, _ = input_tensor.shape
-        hidden_state = hidden_state if hidden_state is not None else self._init_hidden(batch_size=b)
+        b, d = input_tensor.shape
+        self.hidden_state = self.hidden_state if self.hidden_state is not None else self._init_hidden(batch_size=b)
 
-        embedded = self.embed(input.view(-1, self.input_size))
+        embedded = self.embed(input_tensor.view(-1, self.input_dim))
         h_in = embedded
 
         for layer_idx, lstm in enumerate(self.cell_list):
-            hidden_state[layer_idx] = lstm(h_in, hidden_state[layer_idx])
-            h_in = hidden_state[layer_idx][0]
+            self.hidden_state[layer_idx] = lstm(h_in, self.hidden_state[layer_idx])
+            h_in = self.hidden_state[layer_idx][0]
 
         output_tensor = self.output(h_in)
         return output_tensor
@@ -108,6 +108,9 @@ class GaussianLSTM(ModelBlock):
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.output_dim = output_dim
+        self.num_layers = num_layers
+        self.batch_first = batch_first
+        self.hidden_state = None
 
         self.embed = nn.Linear(input_dim, hidden_dim)
         self.cell_list = nn.ModuleList([
@@ -115,16 +118,15 @@ class GaussianLSTM(ModelBlock):
             ])
         self.mu_net = nn.Linear(hidden_dim, output_dim)
         self.logvar_net = nn.Linear(hidden_dim, output_dim)
-
         return
 
-    def forward(self, input_tensor, hidden_state=None):
+    def forward(self, input_tensor):
         """
         Forward pass through Gaussian LSTM
         Parameters
         ----------
         input_tensor: torch Tensor
-            3-D Tensor either of shape (t, b, d) or (b, t, d)
+            2-D Tensor either of shape (b, d)
 
         Returns
         -------
@@ -133,16 +135,14 @@ class GaussianLSTM(ModelBlock):
         (mu, logvar): tuple (torch Tensor, torch Tensor)
             Mean and log-covariance of the Gaussain approximate posterior
         """
-        if not self.batch_first:
-            input_tensor = input_tensor.permute(1, 0, 2, 3, 4)
-        b, seq_len, _ = input_tensor.shape
-        hidden_state = hidden_state if hidden_state is not None else self._init_hidden(batch_size=b)
+        b, d = input_tensor.shape
+        self.hidden_state = self.hidden_state if self.hidden_state is not None else self._init_hidden(batch_size=b)
 
-        embedded = self.embed(input.view(-1, self.input_size))
+        embedded = self.embed(input_tensor.view(-1, self.input_dim))
         h_in = embedded
         for layer_idx, lstm in enumerate(self.cell_list):
-            hidden_state[layer_idx] = lstm(h_in, hidden_state[layer_idx])
-            h_in = hidden_state[layer_idx][0]
+            self.hidden_state[layer_idx] = lstm(h_in, self.hidden_state[layer_idx])
+            h_in = self.hidden_state[layer_idx][0]
 
         mu = self.mu_net(h_in)
         logvar = self.logvar_net(h_in)
