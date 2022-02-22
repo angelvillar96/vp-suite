@@ -15,9 +15,7 @@ class VideoPredictionModel(nn.Module):
     utility methods (:meth:`train_iter()` for a single training epoch on a given dataset loader and, analogously,
     :meth:`eval_iter()` for a single epoch of validation iteration).
     """
-    NON_CONFIG_VARS = ["functions", "REQUIRED_ARGS", "PAPER_REFERENCE", "CODE_REFERENCE", "MATCHES_REFERENCE",
-                       "REQUIRED_ARGS", "CAN_HANDLE_ACTIONS", "TRAINABLE", "NEEDS_COMPLETE_INPUT",
-                       "MIN_CONTEXT_FRAMES"]  #: Variables that do not get included in the dict returned by :meth:`self.config()`.
+    NON_CONFIG_VARS = ["functions"]  #: Variables that do not get included in the dict returned by :meth:`self.config()` (Constants are not included either).
 
     # MODEL CONSTANTS
     NAME = None  #: The model's name.
@@ -99,6 +97,9 @@ class VideoPredictionModel(nn.Module):
         """
         img_data = data["frames"].to(config["device"])  # [b, T, c, h, w], with T = total_frames
         actions = data["actions"].to(config["device"])  # [b, T-1, a]. Action t happens between frame t and t+1
+        if img_data.ndim == 4:  # prepend batch dimension if not given
+            img_data = img_data.unsqueeze(0)
+            actions = actions.unsqueeze(0)
         if reverse:
             img_data = torch.flip(img_data, dims=[1])
             actions = torch.flip(actions, dims=[1])

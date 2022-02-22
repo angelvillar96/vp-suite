@@ -41,7 +41,7 @@ class Physics101Dataset(VPDataset):
             **dataset_kwargs ():
         """
         super(Physics101Dataset, self).__init__(split, **dataset_kwargs)
-        self.NON_CONFIG_VARS.extend(["AVAILABLE_CAMERAS", "AVAILABLE_SUBSEQ", "vid_filepaths"])
+        self.NON_CONFIG_VARS.extend(["vid_filepaths"])
 
         # set attributes
         set_from_kwarg(self, dataset_kwargs, "camera", choices=self.AVAILABLE_CAMERAS)
@@ -50,8 +50,8 @@ class Physics101Dataset(VPDataset):
 
         # get video filepaths for train/val or test
         self.vid_filepaths: [Path] = sorted(list(Path(self.data_dir).rglob(f"**/{self.camera}.mp4")))
-        random.Random(self.trainval_test_seed).shuffle(self.vid_filepaths)
         slice_idx = int(len(self.vid_filepaths) * self.trainval_to_test_ratio)
+        random.Random(self.trainval_test_seed).shuffle(self.vid_filepaths)
         if self.split == "train":
             self.vid_filepaths = self.vid_filepaths[:slice_idx]
         else:
