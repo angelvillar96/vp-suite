@@ -23,7 +23,7 @@ MODEL_CLASSES = {
 
     # more sophisticated models
     "svg-det": SVG,
-    "svg-fp": SVG,
+    "svg-lp": SVG,
     "phy": PhyDNet,
     "st-phy": STPhy,
     "convlstm-shi": EF_ConvLSTM,

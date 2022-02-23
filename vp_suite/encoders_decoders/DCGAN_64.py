@@ -6,7 +6,8 @@ DCGAN-64 Encoder and Decoder.
 import torch
 import torch.nn as nn
 
-BN_TRACK_STATS = False
+# BN_TRACK_STATS = False
+BN_TRACK_STATS = True
 
 
 class dcgan_conv(nn.Module):
@@ -48,7 +49,7 @@ class DCGAN_Encoder(nn.Module):
         Base number of convolutional kernels. It's multiplied by 2 at each Conv. Block
     """
 
-    def __init__(self, nc=1, nf=64, dim=None):
+    def __init__(self, nc=1, nf=64, dim=128):
         """ """
         super().__init__()
         self.spatial_dims = [(32, 32), (16, 16), (8, 8), (4, 4), (1, 1)]
@@ -64,7 +65,7 @@ class DCGAN_Encoder(nn.Module):
         # state size. (nf*8) x 4 x 4
         self.c5 = nn.Sequential(
                 nn.Conv2d(nf * 8, self.dim, 4, 1, 0),
-                nn.BatchNorm2d(self.dim, track_running_stats=BN_TRACK_STATS),
+                # nn.BatchNorm2d(self.dim, track_running_stats=BN_TRACK_STATS),
                 nn.Tanh()
                 )
 
@@ -93,7 +94,7 @@ class DCGAN_Decoder(nn.Module):
         Base number of convolutional kernels.
     """
 
-    def __init__(self, nc=1, nf=64, dim=None):
+    def __init__(self, nc=1, nf=64, dim=128):
         super().__init__()
         self.dim = dim if dim is not None else nf * 8
         self.upc1 = nn.Sequential(

@@ -130,7 +130,9 @@ def visualize_vid(dataset, context_frames, pred_frames, pred_model, device,
         if pred_model is None:
             raise ValueError("Need to provide a valid prediction model for visualization!")
         with torch.no_grad():
-            pred, _ = pred_model(input, pred_frames, actions=actions)  # [1, T_pred, c, h, w]
+            # pred, _ = pred_model(input, pred_frames, actions=actions)  # [1, T_pred, c, h, w]
+            model_input = torch.cat((input, target), dim=1)
+            pred, _ = pred_model(model_input, pred_frames, teacher_force=False)  # [1, T_pred, c, h, w]
 
         # assemble prediction
         if pred_model.NEEDS_COMPLETE_INPUT:  # replace original pred frames with actual prediction
