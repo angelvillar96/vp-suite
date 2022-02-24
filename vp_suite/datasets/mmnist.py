@@ -11,7 +11,6 @@ from PIL import Image
 from vp_suite.base.base_dataset import VPDataset, VPData
 import vp_suite.constants as constants
 
-
 class MovingMNISTDataset(VPDataset):
     r"""
     Dataset class for the dataset "Moving MNIST", as firstly encountered in
@@ -30,7 +29,7 @@ class MovingMNISTDataset(VPDataset):
     REFERENCE = "https://arxiv.org/abs/1502.04681v3"
     IS_DOWNLOADABLE = "Yes"
     DEFAULT_DATA_DIR = constants.DATA_PATH / "moving_mnist"
-    MIN_SEQ_LEN = 60
+    MIN_SEQ_LEN = 20
     ACTION_SIZE = 0
     DATASET_FRAME_SHAPE = (64, 64, 3)
 
@@ -67,7 +66,7 @@ class MovingMNISTDataset(VPDataset):
 
     def download_and_prepare_dataset(self):
         frame_size = (64, 64)
-        num_frames = 60  # length of each sequence
+        num_frames = 20  # length of each sequence
         digit_size = 28  # size of mnist digit within frame
         digits_per_image = 2  # number of digits in each frame
         d_path = self.DEFAULT_DATA_DIR
