@@ -52,7 +52,7 @@ class VGG_Encoder(nn.Module):
         # 4 x 4
         self.c5 = nn.Sequential(
                 nn.Conv2d(nf * 8, dim, 4, 1, 0),
-                nn.BatchNorm2d(dim, track_running_stats=BN_TRACK_STATS),
+                # nn.BatchNorm2d(dim, track_running_stats=BN_TRACK_STATS),
                 nn.Tanh()
                 )
         self.mp = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)

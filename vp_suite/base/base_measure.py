@@ -4,7 +4,6 @@ from torch import nn as nn
 
 class BaseMeasure(nn.Module):
     r"""
-
     """
     NAME: str = NotImplemented  #: The clear-text name of the measure.
     REFERENCE: str = None  #: The reference where this measure is originally introduced.
@@ -13,7 +12,6 @@ class BaseMeasure(nn.Module):
 
     def __init__(self, device):
         r"""
-
         Args:
             device ():
         """
@@ -23,13 +21,10 @@ class BaseMeasure(nn.Module):
 
     def forward(self, pred: torch.Tensor, target: torch.Tensor):
         r"""
-
         Args:
             pred ():
             target ():
-
         Returns:
-
         """
         if pred.ndim != 5 or target.ndim != 5:
             raise ValueError(f"{self.NAME} expects 5-D inputs!")
@@ -38,13 +33,10 @@ class BaseMeasure(nn.Module):
 
     def reshape_clamp(self, pred: torch.Tensor, target: torch.Tensor):
         r"""
-
         Args:
             pred ():
             target ():
-
         Returns:
-
         """
         if pred.ndim != 5 or target.ndim != 5:
             raise ValueError(f"{self.NAME} expects 5-D inputs!")
@@ -57,11 +49,8 @@ class BaseMeasure(nn.Module):
     @classmethod
     def to_display(cls, x):
         r"""
-
         Args:
             x ():
-
         Returns:
-
         """
         return x

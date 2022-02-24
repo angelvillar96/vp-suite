@@ -38,7 +38,7 @@ class SmoothL1(BaseMeasure):
 
     """
     NAME = "Smooth L1 Loss"
-    
+
     def __init__(self, device):
         super(SmoothL1, self).__init__(device)
         self.criterion = nn.SmoothL1Loss(reduction="none").to(device)
