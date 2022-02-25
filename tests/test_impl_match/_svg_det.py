@@ -47,11 +47,15 @@ def test_impl():
     # infer: their model
     print("infer: theirs")
     their_x = their_x.transpose(0, 1)
-    their_out = their_model(their_x, n_pred=17)
+    their_model.eval()
+    their_out = their_model(their_x, n_pred=5)
+    if not their_model.training:
+        their_out = their_out[:, -5:]
 
     # infer: our model
     print("infer: ours")
-    our_out, _ = our_model(our_x, pred_frames=17, teacher_force=True)
+    our_model.eval()
+    our_out, _ = our_model(our_x, pred_frames=5, teacher_force=True)
 
     # checks
     print("check results")

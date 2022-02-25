@@ -126,7 +126,7 @@ class SVG(VideoPredictionModel):
             pred_feats = self.predictor(feats)
             pred_output, _ = self.decoder([pred_feats, skips])
 
-            if self.training or t > context-1:
+            if self.training or t >= context - 1:
                 preds.append(pred_output)
                 if self.learned_prior:
                     mus_post.append(mu_post)
