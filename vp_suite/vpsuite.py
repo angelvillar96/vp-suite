@@ -515,7 +515,8 @@ class VPSuite:
                     if getattr(model, "use_actions", False):
                         pred, _ = model(imgs, pred_frames=pred_frames, actions=actions)
                     else:
-                        pred, _ = model(imgs, pred_frames=pred_frames)
+                        pred, _ = model(input, pred_frames=pred_frames)
+                    model.train()
                     pred = postprocess(pred)  # model format to test format
                     cur_metrics = metric_provider.get_metrics(pred, target, all_frame_cnts=True)
                     model_metrics_per_dp.append(cur_metrics)
