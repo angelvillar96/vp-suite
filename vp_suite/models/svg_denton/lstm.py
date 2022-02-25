@@ -45,7 +45,7 @@ class gaussian_lstm(nn.Module):
         self.n_layers = n_layers
         self.batch_size = batch_size
         self.embed = nn.Linear(input_size, hidden_size)
-        self.lstm = nn.ModuleList([nn.LSTMCell(hidden_size, hidden_size) for i in range(self.n_layers)])
+        self.cell_list = nn.ModuleList([nn.LSTMCell(hidden_size, hidden_size) for i in range(self.n_layers)])
         self.mu_net = nn.Linear(hidden_size, output_size)
         self.logvar_net = nn.Linear(hidden_size, output_size)
         self.hidden = self.init_hidden()
@@ -66,7 +66,7 @@ class gaussian_lstm(nn.Module):
         embedded = self.embed(input.view(-1, self.input_size))
         h_in = embedded
         for i in range(self.n_layers):
-            self.hidden[i] = self.lstm[i](h_in, self.hidden[i])
+            self.hidden[i] = self.cell_list[i](h_in, self.hidden[i])
             h_in = self.hidden[i][0]
         mu = self.mu_net(h_in)
         logvar = self.logvar_net(h_in)

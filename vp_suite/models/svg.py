@@ -51,14 +51,14 @@ class SVG(VideoPredictionModel):
         in_dim = self.in_dim if not self.learned_prior else self.in_dim + self.latent_dim
         if self.encoder_arch == "DCGAN":
             self.encoder = DCGAN64_Encoder(nc=self.in_channels, nf=self.nf, dim=self.in_dim)
-            self.decoder = DCGAN64_Decoder(nc=self.in_channels, nf=self.nf, dim=in_dim)
+            self.decoder = DCGAN64_Decoder(nc=self.in_channels, nf=self.nf, dim=self.in_dim)
         elif self.encoder_arch == "VGG":
             self.encoder = VGG64_Encoder(nc=self.in_channels, nf=self.nf, dim=self.in_dim)
-            self.decoder = VGG64_Decoder(nc=self.in_channels, nf=self.nf, dim=in_dim)
+            self.decoder = VGG64_Decoder(nc=self.in_channels, nf=self.nf, dim=self.in_dim)
         self.predictor = LSTM(
                 input_dim=in_dim,
                 hidden_dim=self.hidden_dim,
-                output_dim=in_dim,
+                output_dim=self.in_dim,
                 num_layers=self.num_layers
             )
         if self.learned_prior:
@@ -110,7 +110,7 @@ class SVG(VideoPredictionModel):
         preds, mus_post, logvars_post, mus_prior, logvars_prior = [], [], [], [], []
         for t in range(0, context + pred_frames - 1):
             # encoding images
-            target_feats, _ = self.encoder(targets[:, t]) if (t < num_frames-1) else (None, None)
+            target_feats, _ = self.encoder(targets[:, t])
             if (t < context - 1):
                 feats, skips = self.encoder(next_input)
             else:
