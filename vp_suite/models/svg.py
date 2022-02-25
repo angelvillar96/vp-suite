@@ -99,6 +99,7 @@ class SVG(VideoPredictionModel):
             dict containing the means and variances for the prior and
             posterior distributions, which are needed for the KL-Loss
         """
+        breakpoint()
         (B, num_frames, _, _, _), device = input_tensor.shape, input_tensor.device
         pred_state, prior_state, posterior_state = self._init_hidden(batch_size=B, device=device)
         self.predictor.hidden_state = pred_state
