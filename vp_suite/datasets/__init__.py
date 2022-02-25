@@ -5,7 +5,6 @@ This package contains the all datasets available for use. See docs section "Avai
 from vp_suite.datasets.bair import BAIRPushingDataset
 from vp_suite.datasets.kth import KTHActionsDataset
 from vp_suite.datasets.mmnist import MovingMNISTDataset
-from vp_suite.datasets.mmnist_hmap import MovingMNISTHeatmapsDataset
 from vp_suite.datasets.synpick import SynpickMovingDataset
 from vp_suite.datasets.physics101 import Physics101Dataset
 from vp_suite.datasets.human36m import Human36MDataset
@@ -14,7 +13,6 @@ from vp_suite.datasets.caltech_pedestrian import CaltechPedestrianDataset
 
 DATASET_CLASSES = {
     "MM": MovingMNISTDataset,
-    "MMHeat": MovingMNISTHeatmapsDataset,
     "BAIR": BAIRPushingDataset,
     "KTH": KTHActionsDataset,
     "SPM": SynpickMovingDataset,

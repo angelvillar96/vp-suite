@@ -4,7 +4,7 @@
 from tqdm import tqdm
 import torch
 
-from vp_suite.encoders_decoders import DCGAN64_Encoder, DCGAN64_Decoder, VGG64_Encoder, VGG64_Decoder
+from vp_suite.encoders_decoders import DCGAN64_Encoder, DCGAN64_Decoder, VGG64_Encoder, VGG64_Decoder, VGGSp_Encoder, VGGSp_Decoder
 from vp_suite.model_blocks import LSTM, GaussianLSTM
 from vp_suite.base.base_model import VideoPredictionModel
 
@@ -44,8 +44,8 @@ class SVG(VideoPredictionModel):
     def __init__(self, device, **model_kwargs):
         """ Module initializer """
         super(SVG, self).__init__(device, **model_kwargs)
-        if self.encoder_arch not in ["DCGAN", "VGG"]:
-            raise ValueError("SVG only supports [DCGAN, VGG] for the encoder_arch")
+        if self.encoder_arch not in ["DCGAN", "VGG", "VGGSp"]:
+            raise ValueError("SVG only supports [DCGAN, VGG, VGGSp] for the encoder_arch")
         self.kl_mult = model_kwargs.pop("kl_mult", 1e-4)
 
         in_dim = self.in_dim if not self.learned_prior else self.in_dim + self.latent_dim
@@ -55,6 +55,9 @@ class SVG(VideoPredictionModel):
         elif self.encoder_arch == "VGG":
             self.encoder = VGG64_Encoder(nc=self.in_channels, nf=self.nf, dim=self.in_dim)
             self.decoder = VGG64_Decoder(nc=self.in_channels, nf=self.nf, dim=self.in_dim)
+        elif self.encoder_arch == "VGGSp":
+            self.encoder = VGGSp_Encoder(nc=self.in_channels, nf=self.nf, dim=self.in_dim)
+            self.decoder = VGGSp_Decoder(nc=self.in_channels, nf=self.nf, dim=self.in_dim)
         self.predictor = LSTM(
                 input_dim=in_dim,
                 hidden_dim=self.hidden_dim,
@@ -190,7 +193,6 @@ class SVG(VideoPredictionModel):
         Returns: A dictionary containing the averages value for each loss type specified for usage,
         as well as the value for the 'indicator' loss (the loss used for determining overall model improvement).
         """
-
         self.eval()
         loop = tqdm(loader)
         all_losses = []
