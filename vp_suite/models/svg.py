@@ -45,7 +45,7 @@ class SVG(VideoPredictionModel):
         """ Module initializer """
         super(SVG, self).__init__(device, **model_kwargs)
         if self.encoder_arch not in ["DCGAN", "VGG"]:
-            raise ValueError(f"SVG only supports [DCGAN, VGG] for the encoder_arch")
+            raise ValueError("SVG only supports [DCGAN, VGG] for the encoder_arch")
         self.kl_mult = model_kwargs.pop("kl_mult", 1e-4)
 
         in_dim = self.in_dim if not self.learned_prior else self.in_dim + self.latent_dim
@@ -111,7 +111,7 @@ class SVG(VideoPredictionModel):
         for t in range(0, context + pred_frames - 1):
             # encoding images
             target_feats, _ = self.encoder(targets[:, t]) if (t < num_frames-1) else (None, None)
-            if (t < context):
+            if (t < context - 1):
                 feats, skips = self.encoder(next_input)
             else:
                 feats, _ = self.encoder(next_input)
@@ -119,13 +119,14 @@ class SVG(VideoPredictionModel):
             if (self.learned_prior):
                 z_post, (mu_post, logvar_post) = self.posterior_network(target_feats)
                 z_prior, (mu_prior, logvar_prior) = self.prior_network(feats)
-                latent = z_post if (t < context-1 or self.training) else z_prior
+                latent = z_post if (t < context - 1 or self.training) else z_prior
                 feats = torch.cat([feats, latent], 1)
 
             # predicting future features and decoding next frame
             pred_feats = self.predictor(feats)
             pred_output, _ = self.decoder([pred_feats, skips])
-            if t >= context-1:
+
+            if self.training or t > context-1:
                 preds.append(pred_output)
                 if self.learned_prior:
                     mus_post.append(mu_post)
@@ -161,7 +162,8 @@ class SVG(VideoPredictionModel):
             imgs = torch.cat((input, targets), dim=1)
             predictions, model_losses = self(imgs, pred_frames=pred_frames, teacher_force=True)
 
-            # loss
+            # loss on all frames: context + predicted
+            targets = imgs[:, 1:]
             _, total_loss = loss_provider.get_losses(predictions, targets)
             if model_losses is not None:
                 for value in model_losses.values():

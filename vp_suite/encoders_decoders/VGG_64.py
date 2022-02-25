@@ -7,7 +7,7 @@ VGG-64 Encoder and Decoder.
 import torch
 import torch.nn as nn
 
-BN_TRACK_STATS = False
+BN_TRACK_STATS = True
 
 
 class vgg_layer(nn.Module):

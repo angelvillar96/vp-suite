@@ -108,7 +108,7 @@ class VPSuite:
             pred_frames = dataset_kwargs.pop("pred_frames", run_config["pred_frames"])
             seq_step = dataset_kwargs.pop("seq_step", run_config["seq_step"])
             dataset.set_seq_len(context_frames, pred_frames, seq_step)
-            
+
         self.datasets.append(dataset)
 
     def download_dataset(self, dataset):
@@ -273,7 +273,9 @@ class VPSuite:
         train_data, val_data = dataset.train_data, dataset.val_data
         train_loader = DataLoader(train_data, batch_size=run_config["batch_size"], shuffle=True, num_workers=4,
                                   drop_last=True)
-        val_loader = DataLoader(val_data, batch_size=1, shuffle=False, num_workers=0, drop_last=True)
+        val_loader = DataLoader(val_data, batch_size=run_config["batch_size"], shuffle=False, num_workers=4,
+                                drop_last=True)
+        # val_loader = DataLoader(val_data, batch_size=1, shuffle=False, num_workers=0, drop_last=True)
         best_val_loss = float("inf")
         out_path = Path(run_config["out_dir"]) if run_config["out_dir"] is not None \
             else constants.OUT_PATH / timestamp('train')

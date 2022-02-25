@@ -58,7 +58,7 @@ class LSTM(ModelBlock):
             Mean and log-covariance of the Gaussain approximate posterior
         """
         b, d = input_tensor.shape
-        self.hidden_state = self.hidden_state if self.hidden_state is not None else self._init_hidden(batch_size=b)
+        # self.hidden_state = self.hidden_state if self.hidden_state is not None else self._init_hidden(batch_size=b)
 
         embedded = self.embed(input_tensor.view(-1, self.input_dim))
         h_in = embedded
@@ -136,7 +136,7 @@ class GaussianLSTM(ModelBlock):
             Mean and log-covariance of the Gaussain approximate posterior
         """
         b, d = input_tensor.shape
-        self.hidden_state = self.hidden_state if self.hidden_state is not None else self._init_hidden(batch_size=b)
+        # self.hidden_state = self.hidden_state if self.hidden_state is not None else self._init_hidden(batch_size=b)
 
         embedded = self.embed(input_tensor.view(-1, self.input_dim))
         h_in = embedded
