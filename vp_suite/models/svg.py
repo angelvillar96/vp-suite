@@ -99,7 +99,6 @@ class SVG(VideoPredictionModel):
             dict containing the means and variances for the prior and
             posterior distributions, which are needed for the KL-Loss
         """
-        breakpoint()
         (B, num_frames, _, _, _), device = input_tensor.shape, input_tensor.device
         pred_state, prior_state, posterior_state = self._init_hidden(batch_size=B, device=device)
         self.predictor.hidden_state = pred_state
@@ -115,7 +114,7 @@ class SVG(VideoPredictionModel):
         for t in range(0, context + pred_frames - 1):
             # encoding images
             target_feats, _ = self.encoder(targets[:, t])
-            if (t < context - 1):
+            if (t < context):
                 feats, skips = self.encoder(next_input)
             else:
                 feats, _ = self.encoder(next_input)
@@ -124,14 +123,15 @@ class SVG(VideoPredictionModel):
                 z_post, (mu_post, logvar_post) = self.posterior_network(target_feats)
                 z_prior, (mu_prior, logvar_prior) = self.prior_network(feats)
                 latent = z_post if (t < context - 1 or self.training) else z_prior
-                feats = torch.cat([feats, latent], 1)
+                feats = torch.cat([feats, latent], -1)
 
             # predicting future features and decoding next frame
             pred_feats = self.predictor(feats)
             pred_output, _ = self.decoder([pred_feats, skips])
 
-            if self.training or t >= context - 1:
+            if t >= context - 1 or teacher_force:
                 preds.append(pred_output)
+                # print(f"{t} save")
                 if self.learned_prior:
                     mus_post.append(mu_post)
                     logvars_post.append(logvar_post)
@@ -157,22 +157,20 @@ class SVG(VideoPredictionModel):
             loss_provider (PredictionLossProvider): An instance of the :class:`LossProvider` class
             epoch (int): The current epoch.
         """
-
+        self.train()
         loop = tqdm(loader)
         pred_frames = config["pred_frames"]
         for batch_idx, data in enumerate(loop):
             # preparing data
             input, targets, actions = self.unpack_data(data, config)
             imgs = torch.cat((input, targets), dim=1)
-            predictions, model_losses = self(imgs, pred_frames=pred_frames, teacher_force=True)
-
+            predictions, model_losses = self(imgs, pred_frames=pred_frames, teacher_force=False)
             # loss on all frames: context + predicted
-            targets = imgs[:, 1:]
+            # targets = imgs[:, 1:]
             _, total_loss = loss_provider.get_losses(predictions, targets)
             if model_losses is not None:
                 for value in model_losses.values():
                     total_loss += value
-
             # bwd
             optimizer.zero_grad()
             total_loss.backward()
@@ -180,7 +178,6 @@ class SVG(VideoPredictionModel):
 
             # bookkeeping
             loop.set_postfix(loss=total_loss.item())
-
         return
 
     def eval_iter(self, config, loader, loss_provider):
@@ -205,13 +202,12 @@ class SVG(VideoPredictionModel):
                 # preparing data
                 input, targets, actions = self.unpack_data(data, config)
                 imgs = torch.cat((input, targets), dim=1)
-
                 predictions, model_losses = self(imgs, pred_frames=pred_frames, teacher_force=False)
+
                 # metrics
                 loss_values, _ = loss_provider.get_losses(predictions, targets)
                 all_losses.append(loss_values)
                 indicator_losses.append(loss_values[config["val_rec_criterion"]])
-
         indicator_loss = torch.stack(indicator_losses).mean()
         all_losses = {
             k: torch.stack([loss_values[k] for loss_values in all_losses]).mean().item() for k in all_losses[0].keys()

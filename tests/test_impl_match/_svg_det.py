@@ -41,7 +41,7 @@ def test_impl():
 
     # set up input
     print("setting up input")
-    their_x = torch.rand(2, 23, 3, 64, 64, device=device)
+    their_x = torch.rand(2, 22, 3, 64, 64, device=device)
     our_x = their_x.clone()
 
     # infer: their model
@@ -56,6 +56,7 @@ def test_impl():
     print("infer: ours")
     our_model.eval()
     our_out, _ = our_model(our_x, pred_frames=5, teacher_force=True)
+    our_out = our_out[:, -5:]
 
     # checks
     print("check results")

@@ -112,14 +112,15 @@ def get_vis_from_model(dataset, data, pred_model, data_unpack_config, pred_frame
     if pred_model.NEEDS_COMPLETE_INPUT:
         input, _, actions = pred_model.unpack_data(data, data_unpack_config)
         input_vis = dataset.postprocess(input.clone().squeeze(dim=0))
+        model_input = input
     else:
         input, target, actions = pred_model.unpack_data(data, data_unpack_config)
         full = torch.cat([input.clone(), target.clone()], dim=1)
         input_vis = dataset.postprocess(full.squeeze(dim=0))
-
+        model_input = torch.cat([input.clone(), target.clone()], dim=1)
     # fwd
     with torch.no_grad():
-        pred, _ = pred_model(input, pred_frames, actions=actions)  # [1, T_pred, c, h, w]
+        pred, _ = pred_model(model_input, pred_frames, actions=actions)  # [1, T_pred, c, h, w]
 
     # assemble prediction
     if pred_model.NEEDS_COMPLETE_INPUT:  # replace original pred frames with actual prediction

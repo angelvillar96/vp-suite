@@ -48,7 +48,10 @@ class MovingMNISTOnTheFly(VPDataset):
         self.DATASET_FRAME_SHAPE = (img_h, img_w, img_c)  # TODO dirty hack
 
         # loading data
-        self.data = MNIST(root=self.data_dir, train=(self.split == "train"), download=False)
+        try:
+            self.data = MNIST(root=self.data_dir, train=(self.split == "train"), download=False)
+        except RuntimeError:
+            raise FileNotFoundError("Dataset has not been downloaded")
         self.n_seqs = self.n_seqs or self.DEFAULT_N_SEQS[self.split]
 
         # creating RNG-based generation helpers
