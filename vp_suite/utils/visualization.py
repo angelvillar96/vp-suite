@@ -186,7 +186,7 @@ def visualize_sequences(dataset, context_frames, pred_frames, models, device,
 
     vis_out_fn_template = "vis_{}.png"
     data_unpack_config = {"device": device, "context_frames": context_frames, "pred_frames": pred_frames}
-    info_file_lines = [f"DATASET: {dataset.NAME}",
+    info_file_lines = [f"DATASET: {dataset.NAME}", f"chosen dataset idx: {vis_idx}",
                        f"Displayed context frames: {vis_context_frame_idx}",
                        f"Displayed pred frames: {list(range(context_frames, context_frames+pred_frames))}",
                        "Displayed rows (from top):", " - Ground Truth"]
@@ -217,9 +217,11 @@ def visualize_sequences(dataset, context_frames, pred_frames, models, device,
         save_frame_compare_vis(vis_out_fn, context_frames, ground_truth_vis,
                                preds_vis, vis_context_frame_idx)
 
-        vis_info_fn = str((out_path / "vis_info.txt").resolve())
-        with open(vis_info_fn, "w") as vis_info_file:
-            vis_info_file.writelines(line + '\n' for line in info_file_lines)
+        info_file_lines.append(f"vis {i} (idx {n}) origin: {data['origin']}")
+
+    vis_info_fn = str((out_path / "vis_info.txt").resolve())
+    with open(vis_info_fn, "w") as vis_info_file:
+        vis_info_file.writelines(line + '\n' for line in info_file_lines)
 
 
 def save_diff_hist(diff, diff_id):
